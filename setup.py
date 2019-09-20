@@ -21,7 +21,7 @@ setup(
     packages=find_packages(),
     include_package_data=True,
     zip_safe=False,
-    data_files=[('expac', ['unique_references/EXPAC.fsa']),
+    data_files=[('expec', ['unique_references/ExPEC.fsa']),
                  ('logos', ['artwork/microsalt.jpg', 'artwork/swedac.jpg'])],
     entry_points={
         'console_scripts': ['microSALT=microSALT.cli:root'],

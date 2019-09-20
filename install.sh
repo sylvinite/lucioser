@@ -33,6 +33,8 @@ while true; do
 done
 echo "Thank you, setting up environment $cname!"
 
+conda info| grep -q $rname && source deactivate || ""
+
 #Accepts that environment doesnt exist
 conda remove -y -n $cname --all || ""
 conda create -y -n $cname python=3.6

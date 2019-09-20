@@ -28,14 +28,8 @@
     
     "_comment": "Root folder for input fasta sequencing data",
     "seqdata": "/mnt/hds/proj/bioinfo/MICROBIAL/projects/",
-    "_comment": "ST profiles. Each ST profile file under 'profiles' have an identicial folder under references",
-    "profiles": "/mnt/hds/proj/bioinfo/MICROBIAL/MLST/references/ST_profiles",
-    "_comment": "ST folder. Each references sub-folder contains the .tfa file for each locus of the organism",
-    "references": "/mnt/hds/proj/bioinfo/MICROBIAL/MLST/references/ST_loci",
-    "_commment": "Resistances. Commonly from resFinder",
-    "resistances": "/mnt/hds/proj/bioinfo/MICROBIAL/MLST/references/resistances",
-    "_comment": "Download path for NCBI genomes, for alignment usage",
-    "genomes": "/mnt/hds/proj/bioinfo/MICROBIAL/MLST/references/genomes"
+    "_comment": "Base folder for all reference data",
+    "references": "/mnt/hds/proj/bioinfo/MICROBIAL/MLST/references"
   },
 
   "_comment": "Database/Flask configuration",

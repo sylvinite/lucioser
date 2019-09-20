@@ -50,8 +50,22 @@ def root(ctx):
   ch.setFormatter(logging.Formatter('%(levelname)s - %(message)s'))
   logger.addHandler(ch)
   ctx.obj['log'] = logger
-  ctx.obj['config']['folders']['expac'] = os.path.abspath(os.path.join(os.path.expandvars('$CONDA_PREFIX'), 'expac/EXPAC.fsa')) 
-  ctx.obj['config']['folders']['adapters'] = os.path.abspath(os.path.join(os.path.expandvars('$CONDA_PREFIX'), 'share/trimmomatic-0.39-1/adapters/')) 
+  if os.path.basename(os.path.expandvars('$CONDA_PREFIX'))[0] == 'D':
+    ctx.obj['config']['folders']['expec'] = os.path.abspath(os.path.join(wd , '../unique_references/ExPEC.fsa'))
+  else:
+    ctx.obj['config']['folders']['expec'] = os.path.abspath(os.path.join(os.path.expandvars('$CONDA_PREFIX'), 'expec/ExPEC.fsa'))
+  ctx.obj['config']['folders']['adapters'] = os.path.abspath(os.path.join(os.path.expandvars('$CONDA_PREFIX'), 'share/trimmomatic-0.39-1/adapters/'))
+  ctx.obj['config']['folders']['st_profiles'] = "{}/ST_profiles".format(ctx.obj['config']['folders']['references'])
+  ctx.obj['config']['folders']['st_loci'] = "{}/ST_loci".format(ctx.obj['config']['folders']['references'])
+  ctx.obj['config']['folders']['resistances'] = "{}/resfinder_db".format(ctx.obj['config']['folders']['references'])
+  ctx.obj['config']['folders']['virulences'] = "{}/virulencefinder_db".format(ctx.obj['config']['folders']['references'])
+  ctx.obj['config']['folders']['plasmids'] = "{}/plasmidfinder_db".format(ctx.obj['config']['folders']['references'])
+  ctx.obj['config']['folders']['fimhs'] = "{}/fimtyper_db".format(ctx.obj['config']['folders']['references'])
+  ctx.obj['config']['folders']['genomes'] = "{}/genomes".format(ctx.obj['config']['folders']['references'])
+  ctx.obj['config']['folders']['cgmlst'] = "{}/cgmlst".format(ctx.obj['config']['folders']['references'])
+  
+  scientist=LIMS_Fetcher(ctx.obj['config'], ctx.obj['log'])
+  scientist.check_connection()
 
 @root.group()
 @click.pass_context
@@ -120,11 +134,11 @@ def project(ctx, project_id, input, dry, config, email, qc_only, untrimmed, skip
       fixer = Referencer(ctx.obj['config'], ctx.obj['log'])
       fixer.identify_new(project_id,project=True)
       fixer.update_refs()
-      print("Version check done. Creating sbatch jobs")
+      click.echo("Version check done. Creating sbatch jobs")
     else:
-      print("Skipping version check.")
+      click.echo("Skipping version check.")
   except Exception as e:
-    print("{}".format(e))
+    click.echo("{}".format(e))
 
   manager = Job_Creator(project_dir, ctx.obj['config'], ctx.obj['log'],trim=trimmed,qc_only=qc_only, careful=careful)
   manager.project_job()
@@ -179,9 +193,9 @@ def sample(ctx, sample_id, input, dry, config, email, qc_only, untrimmed, skip_u
       fixer = Referencer(ctx.obj['config'], ctx.obj['log'])
       fixer.identify_new(sample_id,project=False) 
       fixer.update_refs()
-      print("Version check done. Creating sbatch job")
+      click.echo("Version check done. Creating sbatch job")
     else:
-      print("Skipping version check.")
+      click.echo("Skipping version check.")
     worker = Job_Creator(sample_dir, ctx.obj['config'], ctx.obj['log'], trim=trimmed,qc_only=qc_only, careful=careful)
     worker.project_job(single_sample=True)
   except Exception as e:
@@ -247,9 +261,9 @@ def collection(ctx, collection_id, input, dry, qc_only, config, email, untrimmed
       click.echo("Unable to update references for sample {} due to '{}'".format(sample,str(e)))
   if not skip_update:
     fixer.update_refs()
-    print("Version check done. Creating sbatch job")
+    click.echo("Version check done. Creating sbatch job")
   else:
-    print("Skipping version check.")
+    click.echo("Skipping version check.")
 
   try: 
     worker = Job_Creator(collection_dir, ctx.obj['config'], ctx.obj['log'], trim=trimmed,qc_only=qc_only, careful=careful, pool=pool_cg)
@@ -480,7 +494,7 @@ def review(ctx, type, customer, skip_update, email):
   if not skip_update:
     fixer.update_refs()
     fixer.resync()
-  print("Version check done. Generating output")
+  click.echo("Version check done. Generating output")
   if type=='report':
     codemonkey = Reporter(ctx.obj['config'], ctx.obj['log'])
     codemonkey.report(type='st_update', customer=customer)

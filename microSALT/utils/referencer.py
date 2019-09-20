@@ -9,6 +9,7 @@ import re
 import shutil
 import subprocess
 import urllib.request
+import zipfile
 
 from Bio import Entrez
 from bs4 import BeautifulSoup
@@ -33,60 +34,70 @@ class Referencer():
    """ Automatically downloads pubMLST & NCBI organisms not already downloaded """
    neworgs = list()
    newrefs = list()
+   newcg = list()
    try:
      if project:
        samplenames = self.lims.samples_in_project(cg_id)
-       for cg_sampleid in samplenames:
-         self.lims.load_lims_sample_info(cg_sampleid)
-         refname = self.lims.get_organism_refname(cg_sampleid)
-         if refname not in self.organisms and self.lims.data['organism'] not in neworgs:
-           neworgs.append(self.lims.data['organism'])
-         if not "{}.fasta".format(self.lims.data['reference']) in os.listdir(self.config['folders']['genomes']) and not self.lims.data['reference'] in newrefs:
-           newrefs.append(self.lims.data['reference']) 
-       for org in neworgs:
-         self.add_pubmlst(org)
-         #self.download_external(org)
-       for org in newrefs:
-         self.download_ncbi(org)
-     else:
-       self.lims.load_lims_sample_info(cg_id)
-       refname = self.lims.get_organism_refname(cg_id)
-       if refname not in self.organisms:
-         self.add_pubmlst(self.lims.data['organism'])
-         #self.download_external(self.lims.data['organism'])
-       if not "{}.fasta".format(self.lims.data['reference']) in os.listdir(self.config['folders']['genomes']):
-         self.download_ncbi(self.lims.data['reference'])
+     else: 
+       samplenames = [cg_id]
+
+     for cg_sampleid in samplenames:
+       self.lims.load_lims_sample_info(cg_sampleid)
+       refname = self.lims.get_organism_refname(cg_sampleid)
+       if refname not in self.organisms and self.lims.data['organism'] not in neworgs:
+         neworgs.append(self.lims.data['organism'])
+       if not "{}.fasta".format(self.lims.data['reference']) in os.listdir(self.config['folders']['genomes']) and not self.lims.data['reference'] in newrefs:
+         newrefs.append(self.lims.data['reference'])
+       if not refname in os.listdir(self.config['folders']['cgmlst']) and not refname in newcg:
+         newcg.append(refname)
+
+     for org in neworgs:
+       self.add_pubmlst(org)
+     for org in newrefs:
+       self.download_ncbi(org)
+     for org in newcg:
+       self.download_cgmlst(org)
    except Exception as e:
      self.logger.error("Reference update function failed prematurely. Review immediately")
  
   def update_refs(self):
     """Updates all references. Order is important, since no object is updated twice"""
+    #Updates
     self.fetch_pubmlst(self.force)
     self.fetch_external(self.force)
-    self.fetch_resistances(self.force)
-    self.index_db(os.path.dirname(self.config['folders']['expac']), '.fsa')
+    self.fetch_resfinder(self.force)
+    self.index_db(os.path.dirname(self.config['folders']['expec']), '.fsa')
+    for thing in os.listdir(self.config['folders']['cgmlst']):
+      if os.path.isdir("{}/{}".format(self.config['folders']['cgmlst'],thing)):
+        self.index_db("{}/{}".format(self.config['folders']['cgmlst'], thing), '.fasta')
 
   def index_db(self, full_dir, suffix):
     """Check for indexation, makeblastdb job if not enough of them."""
+    reindexation = False
     files = os.listdir(full_dir)
     sufx_files = glob.glob("{}/*{}".format(full_dir, suffix)) #List of source files
-    nin_suff = sum([1 for elem in files if 'nin' in elem]) #Total number of nin files
-    #if nin_suff < len(sufx_files):
     for file in sufx_files:
-      try:
-        #Resistence files
-        if '.fsa' in suffix:
-          bash_cmd = "makeblastdb -in {}/{} -dbtype nucl -out {}".format(\
-          full_dir, os.path.basename(file),  os.path.basename(file[:-4]))
-        #MLST locis
-        else:
-          bash_cmd = "makeblastdb -in {}/{} -dbtype nucl -parse_seqids -out {}".format(\
-          full_dir, os.path.basename(file),  os.path.basename(file[:-4]))
-        proc = subprocess.Popen(bash_cmd.split(), cwd=full_dir, stdout=subprocess.PIPE)
-        output, error = proc.communicate()
-      except Exception as e:
-        self.logger.error("Unable to index requested target {} in {}".format(file, full_dir))
-    self.logger.info("Re-indexed contents of {}".format(full_dir))
+      base = re.sub('\{}$'.format(suffix), '', file)
+
+      bases = sum([1 for elem in files if os.path.basename(base) in elem]) #Number of files with same base name (7)
+      newer = sum([1 for elem in glob.glob("{}*".format(base)) if os.stat(file).st_mtime < os.stat(elem).st_mtime]) #Number of index files fresher than source (7)
+      if bases != 4 or newer != 3:
+        reindexation = True
+        try:
+          #Resistence files
+          if '.fsa' in suffix:
+            bash_cmd = "makeblastdb -in {}/{} -dbtype nucl -out {}".format(\
+            full_dir, os.path.basename(file),  os.path.basename(base))
+          #MLST locis
+          else:
+            bash_cmd = "makeblastdb -in {}/{} -dbtype nucl -parse_seqids -out {}".format(\
+            full_dir, os.path.basename(file),  os.path.basename(base))
+          proc = subprocess.Popen(bash_cmd.split(), cwd=full_dir, stdout=subprocess.PIPE)
+          output, error = proc.communicate()
+        except Exception as e:
+          self.logger.error("Unable to index requested target {} in {}".format(file, full_dir))
+    if reindexation:
+      self.logger.info("Re-indexed contents of {}".format(full_dir))
 
   def fetch_external(self, force=False):
     """ Updates reference for data that IS ONLY LINKED to pubMLST """
@@ -114,7 +125,7 @@ class Referencer():
            (int(profile_no.replace('-','')) > int(currver.replace('-','')) or force):
           # Download definition files
           st_link = prefix + entry.find_all("a")[1]['href']
-          output = "{}/{}".format(self.config['folders']['profiles'], organ)
+          output = "{}/{}".format(self.config['folders']['st_profiles'], organ)
           urllib.request.urlretrieve(st_link, output)
           # Update database
           self.db_access.upd_rec({'name':"profile_{}".format(organ)}, 'Versions', {'version':profile_no})
@@ -122,7 +133,7 @@ class Referencer():
           # Gather loci from second object
           entry = iterator.__next__()
           # Clear existing directory and download allele files
-          out = "{}/{}".format(self.config['folders']['references'], organ)
+          out = "{}/{}".format(self.config['folders']['st_loci'], organ)
           shutil.rmtree(out)
           os.makedirs(out)
           for loci in entry.find_all("a"):
@@ -147,57 +158,50 @@ class Referencer():
     else:
       self.db_access.add_external(overwrite=False, sample=sample)
 
-  def fetch_resistances(self, force=False):
-    cwd = os.getcwd()
-    url = "https://bitbucket.org/genomicepidemiology/resfinder_db.git"
-    hiddensrc ="{}/.resfinder_db".format(self.config['folders']['resistances'])
-    wipeIndex = False
+  def fetch_resfinder(self, force=False):
+    databases = ["resfinder_db","virulencefinder_db","fimtyper_db","plasmidfinder_db"]
 
-    if not os.path.isdir(hiddensrc):
-      self.logger.info("resFinder database not found. Caching..")
-      os.makedirs(hiddensrc)
-      cmd = "git clone {} --quiet".format(url)
-      process = subprocess.Popen(cmd.split(),cwd=self.config['folders']['resistances'], stdout=subprocess.PIPE)
-      output, error = process.communicate()
-      os.rename("{}/resfinder_db".format(self.config['folders']['resistances']), hiddensrc)
-      wipeIndex = True
-    else:
-      if not wipeIndex:
-        actual = os.listdir(self.config['folders']['resistances'])
-        for file in os.listdir(hiddensrc):
-          if file not in actual and ('.fsa' in file):
-            self.logger.info("resFinder database files corrupted. Syncing...")
-            wipeIndex = True
-            break
+    for db in databases:
+      trivial = db.split('_')[0].capitalize()
+      cwd = os.getcwd()
+      url = "https://bitbucket.org/genomicepidemiology/{}.git".format(db)
+      hiddensrc ="{}/{}/.{}".format(self.config['folders']['references'], db, db)
+      wipeIndex = False
 
-        cmd = "git pull origin master"
-        process = subprocess.Popen(cmd.split(),cwd=hiddensrc, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+      if not os.path.isdir(hiddensrc):
+        self.logger.info("{} database not found. Caching..".format(trivial))
+        cmd = "git clone {} --quiet".format(url)
+        process = subprocess.Popen(cmd.split(),cwd="/tmp/" , stdout=subprocess.PIPE)
         output, error = process.communicate()
-        if not 'Already up-to-date.' in str(output):
-          self.logger.info("Remote resFinder database updated. Syncing...")
-          wipeIndex = True
-        else:
-          self.logger.info("Cached resFinder database identical to remote.")
+        shutil.move("/tmp/{}".format(db), hiddensrc)
+        wipeIndex = True
+      else:
+        if not wipeIndex:
+          actual = os.listdir("{}/{}".format(self.config['folders']['references'],db))
+          for file in os.listdir(hiddensrc):
+            if file not in actual and ('.fsa' in file):
+              self.logger.info("{} database files corrupted. Syncing...".format(trivial))
+              wipeIndex = True
+              break
 
-    #Actual update of resistance folder
-    if wipeIndex:
-      for file in os.listdir(hiddensrc):
-        if(os.path.isfile("{}/{}".format(hiddensrc, file))):
-          #Copy fresh
-          shutil.copy("{}/{}".format(hiddensrc, file), self.config['folders']['resistances'])
+          cmd = "git pull origin master"
+          process = subprocess.Popen(cmd.split(),cwd=hiddensrc, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+          output, error = process.communicate()
+          if not 'Already up-to-date.' in str(output):
+            self.logger.info("Remote {} database updated. Syncing...".format(db))
+            wipeIndex = True
+          else:
+            self.logger.info("Cached {} database identical to remote.".format(db))
 
-    #Double checks indexation is current.
-    reIndex = False
-    for file in os.listdir(self.config['folders']['resistances']):
-      parts = file.split('.')
-      if len(parts) > 1 and parts[1] == 'fsa':
-        # Missing index or source modified after index
-        if not "{}.nhr".format(parts[0]) in os.listdir(self.config['folders']['resistances']) \
-           or os.stat("{}/{}".format(self.config['folders']['resistances'], file)).st_mtime > os.stat("{}/{}.nhr".format(self.config['folders']['resistances'],parts[0])).st_mtime\
-           or force:
-             reIndex = True
-    if reIndex:
-      self.index_db(self.config['folders']['resistances'], '.fsa')
+      #Actual update of resistance folder
+      if wipeIndex:
+        for file in os.listdir(hiddensrc):
+          if(os.path.isfile("{}/{}".format(hiddensrc, file))):
+            #Copy fresh
+            shutil.copy("{}/{}".format(hiddensrc, file), "{}/{}".format(self.config['folders']['references'],db))
+
+      #Double checks indexation is current.
+      self.index_db("{}/{}".format(self.config['folders']['references'],db), '.fsa')
 
   def existing_organisms(self):
     """ Returns list of all organisms currently added """
@@ -223,6 +227,59 @@ class Referencer():
     except Exception as e:
       self.logger.warning("Unable to download genome '{}' from NCBI".format(reference))
 
+  def download_cgmlst(self, reference):
+    #Find org on main page
+    query = urllib.request.urlopen("https://www.cgmlst.org/ncs")
+    page = BeautifulSoup(query, 'html.parser')
+    sections = page.find_all("a", href=True)
+    version = '0'
+    for section in sections:
+      if section.find_all("em"):
+        pot_org = section.find_all("em")[0].get_text().replace(' ', '_').lower()
+        if reference in pot_org:
+          currver = self.db_access.get_version('cgmlst_{}'.format(pot_org))
+          break
+
+    if not 'currver' in locals():
+      return
+
+    #Grab version number on secondary page
+    nquery= urllib.request.urlopen(section['href'])
+    npage = BeautifulSoup(nquery, 'html.parser')
+    nsections = npage.find_all("td")
+    found=False
+    for nsection in nsections:
+      if found:
+        version=nsection.get_text()
+        break
+      elif 'Version' == nsection.get_text():
+        found=True      
+
+    if float(version > currver):   
+      targ_dir = "{}/{}".format(self.config['folders']['cgmlst'], pot_org)
+      url= os.path.join(section['href'], "alleles/")
+      os.makedirs(targ_dir)
+      target= "{}/original.zip".format(targ_dir)
+      with urllib.request.urlopen(url) as response, open(target, 'wb') as out_file:
+        shutil.copyfileobj(response, out_file)
+      with zipfile.ZipFile(target) as zf:
+        zf.extractall(targ_dir)
+      #Create big file for span checking purposes
+      combo = open("{}/main.fsa".format(targ_dir), "w+") 
+      files = os.listdir(targ_dir)
+      for file in files:
+        if re.match('\w+\d+.fasta',file):
+          currfile = open("{}/{}".format(targ_dir, file), "r+")
+          for line in currfile:
+            if '>' in line:
+              combo.write(">{}_{}".format(file.split('.')[0],line[1:]))
+            else:
+              combo.write(line)
+          currfile.close()
+      combo.close()  
+
+      self.db_access.upd_rec({'name':'cgmlst_{}'.format(pot_org)}, 'Versions', {'version':version})
+      self.logger.info("cgMLST reference for {} updated to version {}".format(reference.replace('_',' ').capitalize(), version))
 
   def add_pubmlst(self, organism):
     """ Checks pubmlst for references of given organism and downloads them """
@@ -293,7 +350,7 @@ class Referencer():
       return currver
 
     #Pull ST file
-    st_target = "{}/{}".format(self.config['folders']['profiles'], organism)
+    st_target = "{}/{}".format(self.config['folders']['st_profiles'], organism)
     input = "{}/schemes/1/profiles_csv".format(subtype_href)
     urllib.request.urlretrieve(input, st_target)
     #Pull locus files
@@ -302,7 +359,7 @@ class Referencer():
     with urllib.request.urlopen(loci_req) as response:
      loci_query = json.loads(response.read().decode('utf-8'))
 
-    output = "{}/{}".format(self.config['folders']['references'], organism)
+    output = "{}/{}".format(self.config['folders']['st_loci'], organism)
     if(os.path.isdir(output)):
       shutil.rmtree(output)
     os.makedirs(output)

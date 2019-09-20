@@ -12,12 +12,12 @@ class Profiles:
     self.tables = dict()
     self.metadata = metadata
     self.config = config
-    indata = os.listdir(self.config["folders"]["profiles"])
+    indata = os.listdir(self.config["folders"]["st_profiles"])
     for file in indata:
       self.add_table(file)
 
   def add_table(self, file):
-    with open("{}/{}".format(self.config["folders"]["profiles"], file), "r") as fh:
+    with open("{}/{}".format(self.config["folders"]["st_profiles"], file), "r") as fh:
       #Sets profile_* headers
       head = fh.readline()
       head = head.rstrip().split('\t')
@@ -44,12 +44,12 @@ class Novel:
     self.tables = dict()
     self.metadata = metadata
     self.config = config
-    indata = os.listdir(self.config["folders"]["profiles"])
+    indata = os.listdir(self.config["folders"]["st_profiles"])
     for file in indata:
       self.add_table(file)
 
   def add_table(self, file):
-    with open("{}/{}".format(self.config["folders"]["profiles"], file), "r") as fh:
+    with open("{}/{}".format(self.config["folders"]["st_profiles"], file), "r") as fh:
       #Sets profile_* headers
       head = fh.readline()
       head = head.rstrip().split('\t')

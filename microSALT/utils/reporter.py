@@ -63,7 +63,7 @@ class Reporter():
       self.gen_typing()
     elif type == 'motif_overview':
       self.gen_motif(motif="resistance")
-      self.gen_motif(motif="expac")
+      self.gen_motif(motif="expec")
     elif type == 'qc':
       self.gen_qc()
     elif type == 'st_update':
@@ -89,8 +89,9 @@ class Reporter():
       self.kill_flask()
       sys.exit(-1)
     outname = "{}/ST_updates_{}.html".format(self.output, self.now)
+    if not os.path.isfile(outname):
+      self.filelist.append(outname)
     open(outname, 'wb').write(r.content.decode("iso-8859-1").encode("utf8"))
-    self.filelist.append(outname)
     if not silent:
       self.attachments.append(outname)
 
@@ -108,10 +109,11 @@ class Reporter():
       output ="{}/{}".format(self.output, outfile)
       storage = "{}/{}".format(self.config['folders']['reports'], outfile)
 
+      if not os.path.isfile(output):
+        self.filelist.append(output)
       open(output, 'wb').write(q.content.decode("iso-8859-1").encode("utf8"))
       copyfile(output, storage)
 
-      self.filelist.append(output)
       if not silent:
         self.attachments.append(output)  
     except Exception as e:
@@ -132,10 +134,11 @@ class Reporter():
       output ="{}/{}".format(self.output, outfile)
       storage = "{}/{}".format(self.config['folders']['reports'], outfile)
 
+      if not os.path.isfile(output):
+        self.filelist.append(output)
       open(output, 'wb').write(r.content.decode("iso-8859-1").encode("utf8"))
       copyfile(output, storage)
     
-      self.filelist.append(output)
       if not silent:
         self.attachments.append(output)
     except Exception as e:
@@ -143,7 +146,7 @@ class Reporter():
       self.error = True
 
   def gen_motif(self, motif="resistance", silent=False):
-    if motif not in ["resistance", "expac"]:
+    if motif not in ["resistance", "expec"]:
       self.logger.error("Invalid motif type specified for gen_motif function")
     if self.collection:
       sample_info = gen_collectiondata(self.name)
@@ -151,6 +154,8 @@ class Reporter():
       self.ticketFinder.load_lims_project_info(self.name)
       sample_info = gen_reportdata(self.name)
     output = "{}/{}_{}_{}.csv".format(self.output,self.name,motif,self.now)
+    if not os.path.isfile(output):
+      self.filelist.append(output)
     excel = open(output, "w+")
     motifdict = dict()
 
@@ -162,7 +167,7 @@ class Reporter():
             motifdict[r.resistance] =list()
           if r.threshold == 'Passed' and not r.gene in motifdict[r.resistance]:
             motifdict[r.resistance].append(r.gene)
-      elif motif=='expac':
+      elif motif=='expec':
         for r in s.expacs:
           if not (r.virulence in motifdict.keys()) and r.threshold == 'Passed':
             motifdict[r.virulence] =list()
@@ -197,7 +202,7 @@ class Reporter():
             rowdict[r.resistance] =dict()
           if r.threshold == 'Passed' and not r.gene in rowdict[r.resistance]:
             rowdict[r.resistance][r.gene] = r.identity
-      elif motif=="expac":
+      elif motif=="expec":
         for r in s.expacs:
           if not (r.virulence in rowdict.keys()) and r.threshold == 'Passed':
             rowdict[r.virulence] =dict()
@@ -224,7 +229,6 @@ class Reporter():
       excel.write("{}{}\n".format(pref, hits))
 
     excel.close()
-    self.filelist.append(output)
     if not silent:
       self.attachments.append(output)
 
@@ -255,9 +259,10 @@ class Reporter():
           report[s.CG_ID_sample]['blast_resfinder_resistence'].append(r.gene)
 
     #json.dumps(report) #Dumps the json directly
+    if not os.path.isfile(output):
+      self.filelist.append(output)
     with open(output, 'w') as outfile:
       json.dump(report, outfile)
-    self.filelist.append(output)
     if not silent:
       self.attachments.append(output)
 
