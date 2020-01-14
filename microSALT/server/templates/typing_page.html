@@ -60,6 +60,10 @@
                         {% endif %}
                       </tr>
                       <tr>
+                        <td><b>Ansvarig bioinformatiker</b></td>
+                        <td>{{user}}</td>
+                      </tr>
+                      <tr>
                         <td><b>microSALT version</b></td>
                         <td>{{build}}</td>
                       </tr>
@@ -108,6 +112,33 @@
               </div>
                 (*) Information om prover som kommer från kund <br/>
                 (**) För förbättrad översikt rapporteras resultaten för kontrollprover enbart i detaljrapporten <br/>
+            </div></div>
+
+            <div class="panel"><div class="panel-body">
+              <h3>Core Genome distans (topplista)<br></h3>
+              <p>
+              </p>
+              <div class="table-responsive">
+                <table  class="table table-bordered" style='table-layout:fixed;'>
+                <tr><td><b>CG Prov ID</b></td><td><b>Avstånd</b></td></tr>
+                {% for row in cgmatrix %}
+                  <tr>
+                  {% for elem in row %}
+                    {% if elem is string %}
+                      <td>{{elem}}</td>
+                    {% elif elem|int == 0 %}
+                      <td bgcolor="#fa8072">{{elem}} (Identiska)</td>
+                    {% elif elem|int < 30 %}
+                      <td bgcolor="#ebffcd">{{elem}}</td>
+                    {% elif elem|int < 50 %}
+                      <td bgcolor="#fffacd">{{elem}}</td>
+                    {% else %}
+                      <td>{{elem}}</td>
+                    {% endif %}
+                  {% endfor %}
+                  </tr>
+                {% endfor%}
+              </table></div>
             </div></div>
 
               <div class="panel"><div class="panel-body">
@@ -210,6 +241,12 @@
               ev undantag i metoden från Clinical Genomics finns tillgängligt i
               SupportSystem för dess ticket id. En stängd ticket kan närsomhelst
               öppnas upp igen för frågor.
+              </p>
+              
+              <h3>Förbättringsförslag<br></h3>
+              <p>
+              Alla typer av förbättringsförslag mailas med fördel till microsalt-suggestions@scilifelab.se<br>
+              Din återkopplling uppskattas!
               </p>
 
               <h3>Signatur för godkännande av rapport<br></h3>

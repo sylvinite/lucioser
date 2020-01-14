@@ -35,7 +35,8 @@
     "_comment": "Resistances. Commonly from resFinder",
     "resistances": "/tmp/MLST/references/resistances",
     "_comment": "Download path for NCBI genomes, for alignment usage",
-    "genomes": "/tmp/MLST/references/genomes"
+    "genomes": "/tmp/MLST/references/genomes",
+    "cgmlst": "/tmp/MLST/references/cgmlst"
   },
 
   "_comment": "Database/Flask configuration",
@@ -51,6 +52,8 @@
     "mlst_id": 100,
     "mlst_novel_id": 99.5,
     "mlst_span": 90,
+    "cgmlst_id": 97,
+    "cgmlst_coverage": 30,
     "motif_id": 97,
     "motif_span": 90,
     "_comment": "Quality Control thresholds",

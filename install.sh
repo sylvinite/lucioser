@@ -50,10 +50,12 @@ while true; do
 done
 echo "Thank you, setting up environment $cname!"
 
-#Accepts that environment doesnt exist
-conda remove -y -n $cname --all || ""
+#Unload environment
+conda info| grep -q $cname && source deactivate || :
+#Remove environment if already present
+conda remove -y -n $cname --all || :
+
 conda create -y -n $cname python=3.6
-#source deactivate
 source activate $cname
 conda config --add channels bioconda
 conda install -y -c bioconda blast=2.9.0 bwa=0.7.17 picard=2.20.3 pigz=2.4 quast=5.0.2 samtools=1.9 spades=3.13.1 trimmomatic=0.39

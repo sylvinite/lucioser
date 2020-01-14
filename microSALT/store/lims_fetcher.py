@@ -35,6 +35,13 @@ class LIMS_Fetcher():
     except KeyError as e:
       self.logger.warn("Unable to fetch LIMS info for project {}\nSource: {}".format(cg_projid, str(e)))
 
+  def check_connection(self):
+    self.logger.info("Verifying LIMS connection...")
+    try:
+      self.lims.check_version()
+    except Exception as e:
+      self.logger.error("Unable to connect to LIMS at {}. Halting program.".format(baseuri))
+
   def samples_in_project(self, cg_projid):
     """ Returns a list of sample names for a project"""
     output = list()
@@ -68,7 +75,6 @@ class LIMS_Fetcher():
           if warnings:
             self.logger.warn("Sample name {} resolves to entries '{}'. Arbitarily picking {}".format(s.name, (', '.join(errnames)), sample[num].id ))
         sample = sample[num]
-
       #Internal
       else:
         sample = Sample(self.lims, id=cg_sampleid)

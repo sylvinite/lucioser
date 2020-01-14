@@ -1,6 +1,9 @@
+import math
+import logging
+import subprocess
+
 from datetime import date
 from flask import Flask, render_template
-import logging
 from io import StringIO, BytesIO
 
 from sqlalchemy import *
@@ -56,6 +59,7 @@ def alignment_page(project):
         samples = sample_info['samples'],
         date = date.today().isoformat(),
         version = sample_info['versions'],
+        user = sample_info['user'],
         threshold = config['threshold'],
         reports = sample_info['reports'],
         build = __version__)
@@ -68,6 +72,8 @@ def typing_page(project, organism_group):
         samples = sample_info['samples'],
         date = date.today().isoformat(),
         version = sample_info['versions'],
+        cgmatrix = sample_info['cgmatrix'],
+        user = sample_info['user'],
         threshold = config['threshold'],
         verified_organisms = config['regex']['verified_organisms'],
         reports = sample_info['reports'],
@@ -130,7 +136,10 @@ def gen_add_info(sample_info=dict()):
   sample_info = sorted(sample_info, key=lambda sample: \
                 int(sample.CG_ID_sample.replace(sample.CG_ID_project, '')[1:]))
 
+  corecompare = dict()
+
   for s in sample_info:
+    corecompare[s.CG_ID_sample] = list()
     s.ST_status=str(s.ST)
     if s.Customer_ID_sample.startswith('NTC') or s.Customer_ID_sample.startswith('0-') or \
     s.Customer_ID_sample.startswith('NK-') or s.Customer_ID_sample.startswith('NEG') or \
@@ -155,7 +164,7 @@ def gen_add_info(sample_info=dict()):
           s.threshold = 'Failed'
 
       if near_hits > 0 and s.threshold == 'Passed':
-        s.ST_status = 'Okänd ({} alleles)'.format(near_hits)
+        s.ST_status = 'Okänd ({} allele[r])'.format(near_hits)
     else:
       s.threshold = 'Failed'
 
@@ -163,7 +172,7 @@ def gen_add_info(sample_info=dict()):
       if s.ST == -1:
         s.ST_status = 'Data saknas'
       elif (s.ST <= -4 or s.ST == -2):
-        s.ST_status = 'Okänd (Novel ST, Novel allele[s])'
+        s.ST_status = 'Okänd (Novel ST, Novel allele[r])'
       else:
         s.ST_status='None'
 
@@ -179,6 +188,9 @@ def gen_add_info(sample_info=dict()):
         v.threshold = 'Passed'
       else:
         v.threshold = 'Failed'
+    for c in s.core_seq_types:
+      if c.identity >= config["threshold"]["cgmlst_id"] and c.contig_coverage >= config["threshold"]["cgmlst_coverage"]:
+        corecompare[s.Customer_ID_sample].append("{}:{}".format(c.loci, c.allele))
 
     #Seq_type and resistance sorting
     s.seq_types=sorted(s.seq_types, key=lambda x: x.loci)
@@ -186,9 +198,48 @@ def gen_add_info(sample_info=dict()):
     s.expacs=sorted(s.expacs, key=lambda x: x.gene)
     output['samples'].append(s)
 
+
+  #CG display
+  keylist = list(corecompare.keys())
+  cgtop = dict()
+  for i in keylist:
+    for j in keylist[keylist.index(i)+1:]:
+      distance = len(list(set(corecompare[i]).symmetric_difference(corecompare[j])))
+      if distance <= 200:
+        controls = False
+        if i.startswith('NTC') or i.startswith('0-') or i.startswith('NK-') or i.startswith('NEG') or \
+        i.startswith('CTRL') or i.startswith('Neg') or i.startswith('blank') or i.startswith('dual-NTC'):
+          if j.startswith('NTC') or j.startswith('0-') or j.startswith('NK-') or j.startswith('NEG') or \
+          j.startswith('CTRL') or j.startswith('Neg') or j.startswith('blank') or j.startswith('dual-NTC'):
+            controls = True
+        if controls:
+          cgtop['{} - {}'.format(i,j)] = "{} (Kontrollprover)".format(len(list(set(corecompare[i]).symmetric_difference(corecompare[j]))))
+        else:
+          cgtop['{} - {}'.format(i,j)] = len(list(set(corecompare[i]).symmetric_difference(corecompare[j])))
+  output['cgmatrix'] = sorted(cgtop.items(), key = lambda t: t[1])
+
+  #FIXED LIMIT LOWER TRIANGLE CG-MATRIX
+  #cgmatrix = list()
+  #sections = math.ceil(len(keylist)/10)
+  #for s in range(0, sections):
+  #  cgmatrix.append([''] + keylist[s*10:s*10+10])
+  #  for i in keylist[s*10+1:]:
+  #    tmplist = [i]
+  #    for j in keylist[s*10:s*10+10]:
+  #      if keylist.index(j) >= keylist.index(i):
+  #        tmplist.append('-')
+  #      else:
+  #        tmplist.append( len(list(set(corecompare[i]).symmetric_difference(corecompare[j]))) )
+  #    cgmatrix.append( tmplist )
+  #output['cgmatrix'] = cgmatrix
+
   versions = session.query(Versions).all()
   for version in versions:
     name = version.name[8:]
     output['versions'][name] = version.version
+
+  process = subprocess.Popen("id -un".split(), stdout=subprocess.PIPE)
+  user, error = process.communicate()
+  output['user'] = user.decode("utf-8").replace('.',' ').title()
 
   return output

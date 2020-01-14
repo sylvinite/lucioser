@@ -46,11 +46,11 @@ if config != '':
     app.config.update(config['database'])
 
     #Add extrapaths to config
-    config['folders']['expac'] = os.path.abspath(os.path.join(pathlib.Path(__file__).parent.parent, 'unique_references/EXPAC.fsa'))
+    config['folders']['expec'] = os.path.abspath(os.path.join(pathlib.Path(__file__).parent.parent, 'unique_references/ExPEC.fsa'))
     #Check if release install exists
     for entry in os.listdir(get_python_lib()):
       if 'microSALT-' in entry:
-        config['folders']['expac'] = os.path.abspath(os.path.join(os.path.expandvars('$CONDA_PREFIX'), 'expac/EXPAC.fsa'))
+        config['folders']['expec'] = os.path.abspath(os.path.join(os.path.expandvars('$CONDA_PREFIX'), 'expec/ExPEC.fsa'))
         break
     config['folders']['adapters'] = os.path.abspath(os.path.join(os.path.expandvars('$CONDA_PREFIX'), 'share/trimmomatic-0.39-1/adapters/'))
 

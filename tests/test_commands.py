@@ -68,7 +68,6 @@ def test_analyse(check_version, get_samples, isdir, listdir, subproc, runner, co
 @patch('microSALT.utils.reporter.Reporter.start_web')
 @patch('microSALT.store.lims_fetcher.Lims.check_version')
 def test_finish(check_version, webstart, runner, config):
-
   #All subcommands
   for analysis_type in ['sample', 'project', 'collection']:
     base_invoke = runner.invoke(root, ['utils', 'finish', analysis_type])
