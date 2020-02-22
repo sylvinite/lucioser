@@ -54,6 +54,8 @@
     "motif_id": 97,
     "motif_span": 90,
     "_comment": "Quality Control thresholds",
+    "organism_mapped_warn": 90,
+    "organism_mapped_fail": 70,
     "total_reads_warn": 75,
     "total_reads_fail": 70,
     "NTC_total_reads_warn": 10,
