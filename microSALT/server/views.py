@@ -36,6 +36,7 @@ log.setLevel(logging.CRITICAL)
 @app.route("/")
 def start_page():
     projects = session.query(Projects).all()
+    projects = sorted(projects, reverse=True, key=lambda proj: (proj.CG_ID_project))
     session.close()
     return render_template("start_page.html", projects=projects)
 
@@ -43,6 +44,7 @@ def start_page():
 @app.route("/microSALT/")
 def reroute_page():
     projects = session.query(Projects).all()
+    projects = sorted(projects, reverse=True, key=lambda proj: (proj.CG_ID_project))
     session.close()
     return render_template("start_page.html", projects=projects)
 
@@ -180,7 +182,10 @@ def gen_add_info(sample_info=dict()):
             pass
 
     for s in sample_info:
-        s.CG_ID_project = s.projects.CG_ID_project
+        try:
+            s.CG_ID_project = s.projects.CG_ID_project
+        except Exception as e:
+            s.CG_ID_project = ""
         s.ST_status = str(s.ST)
         if s.Customer_ID_sample is not None:
             if (
@@ -203,18 +208,20 @@ def gen_add_info(sample_info=dict()):
             near_hits = 0
             s.threshold = "Passed"
             for seq_type in s.seq_types:
+                absspan = 100*(1 - abs(1 - seq_type.span))
                 # Identify single deviating allele
                 if (
-                    seq_type.st_predictor
-                    and seq_type.identity >= preset_config["threshold"]["mlst_novel_id"]
-                    and preset_config["threshold"]["mlst_id"] > seq_type.identity
-                    and 1 - abs(1 - seq_type.span)
-                    >= (preset_config["threshold"]["mlst_span"] / 100.0)
+                    seq_type.st_predictor and (
+                    seq_type.identity >= preset_config["threshold"]["mlst_novel_id"] and
+                    seq_type.identity < preset_config["threshold"]["mlst_id"] 
+                    or absspan >= preset_config["threshold"]["mlst_span"] and
+                    absspan < 100
+                    )
                 ):
                     near_hits = near_hits + 1
                 elif (
                     seq_type.identity < preset_config["threshold"]["mlst_novel_id"]
-                    or seq_type.span < (preset_config["threshold"]["mlst_span"] / 100.0)
+                    or absspan < preset_config["threshold"]["mlst_span"]
                 ) and seq_type.st_predictor:
                     s.threshold = "Failed"
 
@@ -240,7 +247,7 @@ def gen_add_info(sample_info=dict()):
                 r.threshold = "Passed"
             else:
                 r.threshold = "Failed"
-        for v in s.expacs:
+        for v in s.custom_targets:
             if (
                 v.identity >= preset_config["threshold"]["motif_id"]
                 and v.span >= preset_config["threshold"]["motif_span"] / 100.0
@@ -252,7 +259,7 @@ def gen_add_info(sample_info=dict()):
         # Seq_type and resistance sorting
         s.seq_types = sorted(s.seq_types, key=lambda x: x.loci)
         s.resistances = sorted(s.resistances, key=lambda x: x.instance)
-        s.expacs = sorted(s.expacs, key=lambda x: x.gene)
+        s.custom_targets = sorted(s.custom_targets, key=lambda x: x.gene)
         output["samples"].append(s)
         output["single_sample"] = s
 

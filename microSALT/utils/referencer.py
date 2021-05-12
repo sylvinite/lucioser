@@ -81,9 +81,6 @@ class Referencer:
         self.fetch_external(self.force)
         self.fetch_resistances(self.force)
 
-        # Reindexes
-        self.index_db(os.path.dirname(self.config["folders"]["expec"]), ".fsa")
-
     def index_db(self, full_dir, suffix):
         """Check for indexation, makeblastdb job if not enough of them."""
         reindexation = False

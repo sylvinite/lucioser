@@ -18,15 +18,16 @@
                                         <table id="batch_table" class="table table-striped table-bordered" cellspacing="0" width="100%">
                                             <thead>
                                                 <tr>
-                                                <th><a  data-toggle="tooltip" data-placement="right" title="Defined as StarLimsNumber_TicketID">Organisms</a></th>
+                                                <th><a  data-toggle="tooltip" data-placement="right" title="Defined as StarLimsNumber_TicketID">Report Types</a></th>
                                                 </tr>
                                             </thead>
                                             <tbody class=list >
-                                            {% for organism in organisms %}
                                             <tr>
-                                            <td><a href={{ url_for('typing_page', project=project, organism_group=organism) }}>{{organism.replace('_', ' ').capitalize()}}</a></td>
+                                            <td><a href={{ url_for('typing_page', project=project, organism_group="all") }}>"Typing"</a></td>
                                             </tr>
-                                            {% endfor %}
+                                            <tr>
+                                            <td><a href={{ url_for('alignment_page', project=project) }}>"QC"</a></td>
+                                            </tr>
                                             </tbody>
                                         </table>
                                     </div>

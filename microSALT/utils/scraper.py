@@ -16,12 +16,13 @@ from microSALT.utils.job_creator import Job_Creator
 
 # TODO: Rewrite so samples use seperate objects
 class Scraper:
-    def __init__(self, config, log, sampleinfo={}, input=""):
+    def __init__(self, config, log, sampleinfo={}, run_settings={}, input=""):
         self.config = config
         self.logger = log
+        self.run_settings = run_settings
         self.db_pusher = DB_Manipulator(config, log)
         self.referencer = Referencer(config, log)
-        self.job_fallback = Job_Creator(config=config, log=log, sampleinfo=sampleinfo)
+        self.job_fallback = Job_Creator(config=config, log=log, sampleinfo=sampleinfo, run_settings=run_settings)
         self.infolder = os.path.abspath(input)
         self.sampledir = ""
 
@@ -97,11 +98,8 @@ class Scraper:
         self.sampledir = self.infolder
         self.scrape_blast(type="seq_type")
         self.scrape_blast(type="resistance")
-        if (
-            self.referencer.organism2reference(self.sample.get("organism"))
-            == "escherichia_coli"
-        ):
-            self.scrape_blast(type="expec")
+        if "custom_target" in self.run_settings and self.run_settings["custom_target"] != "":
+            self.scrape_blast(type="custom")
         self.scrape_alignment()
         self.scrape_quast()
 
@@ -159,8 +157,8 @@ class Scraper:
     def scrape_blast(self, type="", file_list=[]):
         hypo = list()
         type2db = type.capitalize() + "s"
-        if type == "expec":
-            type2db = "Expacs"
+        if type == "custom":
+            type2db = "Custom_targets"
 
         if file_list == []:
             if type == "seq_type":
@@ -186,11 +184,9 @@ class Scraper:
                 if type == "resistance":
                     ref_folder = self.config["folders"]["resistances"]
                     suffix = "fsa"
-                elif type == "expec":
-                    ref_folder = os.path.dirname(self.config["folders"]["expec"])
-                    suffix = os.path.basename(self.config["folders"]["expec"]).rsplit(
-                        ".", 1
-                    )[1]
+                elif type == "custom":
+                    ref_folder = self.run_settings["custom_targets"]
+                    suffix = ref_folder.rsplit(".", 1)[1]
                 elif type == "seq_type":
                     ref_folder = "{}/{}".format(
                         self.config["folders"]["references"], organism
@@ -246,7 +242,9 @@ class Scraper:
                                         / locilengths[padder]
                                     )
 
-                                elif type == "expec":
+                                elif type == "custom":
+                                    head, tail = os.path.split(self.run_settings["custom_target"])
+                                    hypo[-1]["db_name"] = tail
                                     hypo[-1]["instance"] = filename
                                     # Thanks, precompiled list standards
                                     if ">" in elem_list[3]:
@@ -320,7 +318,7 @@ class Scraper:
         # Cleanup of overlapping hits
         if type == "seq_type":
             identifier = "loci"
-        elif type == "resistance" or type == "expec":
+        elif type == "resistance" or type == "custom":
             identifier = "gene"
         ind = 0
         while ind < len(hypo) - 1:

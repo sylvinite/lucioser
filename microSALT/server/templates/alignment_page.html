@@ -10,7 +10,9 @@
               <img src="https://github.com/Clinical-Genomics/microSALT/blob/master/artwork/microsalt.jpg?raw=true" \
               alt="MicroSALT Logo" align="left" \
               style="position:absolute;left:15px;width:400px;height:100px;display:flex;"></a>
-              <img src="https://github.com/Clinical-Genomics/microSALT/blob/master/artwork/swedac.jpg?raw=true" alt="Swedac Logo" align="right" style="display:flex;">
+              {% if 'MW' in topsample.application_tag %}
+                <img src="https://github.com/Clinical-Genomics/microSALT/blob/master/artwork/swedac.jpg?raw=true" alt="Swedac Logo" align="right" style="display:flex;">
+              {% endif %}
               <h2 class="page-header">
                 <small><br><br><br>Kvalitetskontrollsrapport</small>
 

@@ -39,8 +39,8 @@ def dbm():
     dbm.add_rec(entry, 'Seq_types')
   for bentry in unpack_db_json('sampleinfo_resistance.json'):
     dbm.add_rec(bentry, 'Resistances')
-  for centry in unpack_db_json('sampleinfo_expec.json'):
-    dbm.add_rec(centry, 'Expacs')
+  for centry in unpack_db_json('sampleinfo_custom.json'):
+    dbm.add_rec(centry, 'Custom_targets')
   for dentry in unpack_db_json('sampleinfo_reports.json'):
     dbm.add_rec(dentry, 'Reports')
   return dbm
@@ -49,7 +49,7 @@ def test_create_every_table(dbm):
   assert dbm.engine.dialect.has_table(dbm.engine, 'samples')
   assert dbm.engine.dialect.has_table(dbm.engine, 'seq_types')
   assert dbm.engine.dialect.has_table(dbm.engine, 'resistances')
-  assert dbm.engine.dialect.has_table(dbm.engine, 'expacs')
+  assert dbm.engine.dialect.has_table(dbm.engine, 'custom_targets')
   assert dbm.engine.dialect.has_table(dbm.engine, 'projects')
   assert dbm.engine.dialect.has_table(dbm.engine, 'reports')
   assert dbm.engine.dialect.has_table(dbm.engine, 'collections')
@@ -76,9 +76,9 @@ def test_add_rec(caplog, dbm):
   assert len(dbm.query_rec('Resistances',{'CG_ID_sample':'ADD1234A1', 'gene':'Type 1', 'instance':'Type 1', 'contig_name':'NODE_1'})) > 0
   assert len(dbm.query_rec('Resistances',{'CG_ID_sample':'XXX1234A10', 'gene':'Type 1', 'instance':'Type 1', 'contig_name':'NODE_1'})) == 0
 
-  dbm.add_rec({'CG_ID_sample':'ADD1234A1','gene':'Type 1', 'instance':'Type 1', 'contig_name':'NODE_1'}, 'Expacs')
-  assert len(dbm.query_rec('Expacs',{'CG_ID_sample':'ADD1234A1','gene':'Type 1', 'instance':'Type 1', 'contig_name':'NODE_1'})) > 0
-  assert len(dbm.query_rec('Expacs',{'CG_ID_sample':'XXX1234A10','gene':'Type 1', 'instance':'Type 1', 'contig_name':'NODE_1'})) == 0
+  dbm.add_rec({'CG_ID_sample':'ADD1234A1','gene':'Type 1', 'instance':'Type 1', 'contig_name':'NODE_1'}, 'Custom_targets')
+  assert len(dbm.query_rec('Custom_targets',{'CG_ID_sample':'ADD1234A1','gene':'Type 1', 'instance':'Type 1', 'contig_name':'NODE_1'})) > 0
+  assert len(dbm.query_rec('Custom_targets',{'CG_ID_sample':'XXX1234A10','gene':'Type 1', 'instance':'Type 1', 'contig_name':'NODE_1'})) == 0
 
   dbm.add_rec({'CG_ID_project':'ADD1234'}, 'Projects')
   assert len(dbm.query_rec('Projects',{'CG_ID_project':'ADD1234'})) > 0 
@@ -131,7 +131,7 @@ def test_allele_ranker(dbm):
 def test_get_and_set_report(dbm):
   dbm.add_rec({'CG_ID_sample':'ADD1234A1', 'method_sequencing':'1000:1'}, 'Samples')
   dbm.add_rec({'CG_ID_project':'ADD1234','version':'1'}, 'Reports')
-  assert dbm.get_report('ADD1234').version == 1
+  assert dbm.get_report('ADD1234').version >= 1
 
   dbm.upd_rec({'CG_ID_sample':'ADD1234A1', 'method_sequencing':'1000:1'}, 'Samples', {'CG_ID_sample':'ADD1234A1', 'method_sequencing':'1000:2'})
   dbm.set_report('ADD1234')

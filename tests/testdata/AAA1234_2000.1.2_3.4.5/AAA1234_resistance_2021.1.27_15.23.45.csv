@@ -1,0 +1,14 @@
+sep=,
+Identity 97% & Span 90%,,,
+CG Sample ID,Sample ID,Organism,Sequence Type,Thresholds
+ADD1234A1,None,None,Data saknas,-
+UPD1234A1,None,None,Data saknas,-
+UPD1234A1_uniq,cust000,None,Data saknas,-
+UPD1234A2_uniq,cust000,None,Data saknas,-
+MLS1234A1,None,staphylococcus_aureus,Data saknas,-
+Uniq_ID_123,None,None,Data saknas,-
+Uniq_ID_321,None,None,Data saknas,-
+AAA1234A1,XXX0000Y1,staphylococcus_aureus,None,Failed
+AAA1234A2,XXX0000Y1,Escherichia coli,Data saknas,-
+AAA1234A3,XXX0000Y1,Unset,Data saknas,-
+AAA1234A4,XXX0000Y1,Unset,Data saknas,-

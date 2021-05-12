@@ -10,9 +10,9 @@
   },
 
   "regex":  {
-    "mail_recipient": "username@suffix.com",
+    "mail_recipient": "USERNAME@HOST.se",
     "_comment": "File finding patterns. Only single capture group accepted (for reverse/forward identifier)",
-    "file_pattern": "\\w{8,12}_\\w{8,10}(?:-\\d+)*_L\\d_(?:R)*(\\d{1}).fastq.gz",
+    "file_pattern": "\\w{8,12}_\\w{8,10}(?:-\\d+)*_L\\d+_(?:R)*(\\d{1})(_\\d+).fastq.gz",
     "_comment": "Organisms recognized enough to be considered stable",
     "verified_organisms": []
   },

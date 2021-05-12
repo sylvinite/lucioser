@@ -91,6 +91,7 @@ class Reporter:
                 self.gen_qc()
                 self.gen_json(silent=True)
                 self.gen_delivery()
+                self.gen_multiqc()
             elif type == "typing":
                 self.gen_typing()
             elif type == "qc":
@@ -104,7 +105,9 @@ class Reporter:
                 self.gen_delivery()
             elif type == "motif_overview":
                 self.gen_motif(motif="resistance")
-                self.gen_motif(motif="expec")
+                self.gen_motif(motif="custom")
+            elif type == "multiqc":
+                self.gen_multiqc()
         else:
             raise Exception("Report function recieved invalid format")
         self.mail()
@@ -134,38 +137,6 @@ class Reporter:
             self.filedict[outname] = ""
             if not silent:
                 self.attachments.append(outname)
-        except Exception as e:
-            self.logger.error(
-                "Flask instance currently occupied. Possible rogue process. Retry command"
-            )
-            self.error = True
-
-    def gen_qc(self, silent=False):
-        try:
-            last_version = self.db_pusher.get_report(self.name).version
-        except Exception as e:
-            self.logger.error("Project {} does not exist".format(self.name))
-            self.kill_flask()
-            sys.exit(-1)
-        try:
-            q = requests.get(
-                "http://127.0.0.1:5000/microSALT/{}/qc".format(self.name),
-                allow_redirects=True,
-            )
-            outfile = "{}_QC_{}.html".format(
-                self.sample.get("Customer_ID_project"), last_version
-            )
-            local = "{}/{}".format(self.output, outfile)
-            output = "{}/analysis/{}".format(self.config["folders"]["reports"], outfile)
-
-            outfile = open(output, "wb")
-            outfile.write(q.content.decode("iso-8859-1").encode("utf8"))
-            outfile.close()
-
-            if os.path.isfile(output):
-                self.filedict[output] = local
-                if not silent:
-                    self.attachments.append(output)
         except Exception as e:
             self.logger.error(
                 "Flask instance currently occupied. Possible rogue process. Retry command"
@@ -204,8 +175,69 @@ class Reporter:
             )
             self.error = True
 
+    def gen_qc(self, silent=False):
+        try:
+            last_version = self.db_pusher.get_report(self.name).version
+        except Exception as e:
+            self.logger.error("Project {} does not exist".format(self.name))
+            self.kill_flask()
+            sys.exit(-1)
+        try:
+            q = requests.get(
+                "http://127.0.0.1:5000/microSALT/{}/qc".format(self.name),
+                allow_redirects=True,
+            )
+            outfile = "{}_QC_{}.html".format(
+                self.sample.get("Customer_ID_project"), last_version
+            )
+            local = "{}/{}".format(self.output, outfile)
+            output = "{}/analysis/{}".format(self.config["folders"]["reports"], outfile)
+
+            outfile = open(output, "wb")
+            outfile.write(q.content.decode("iso-8859-1").encode("utf8"))
+            outfile.close()
+
+            if os.path.isfile(output):
+                self.filedict[output] = local
+                if not silent:
+                    self.attachments.append(output)
+        except Exception as e:
+            self.logger.error(
+                "Flask instance currently occupied. Possible rogue process. Retry command"
+            )
+            self.error = True
+
+    def gen_multiqc(self, silent=False):
+        try:
+            last_version = self.db_pusher.get_report(self.name).version
+        except Exception as e:
+            self.logger.error("Project {} does not exist".format(self.name))
+            sys.exit(-1)
+        try:
+            outfile = "{}_multiqc_{}.html".format(
+                self.sample.get("Customer_ID_project"), last_version
+            )
+            local = "{}/{}".format(self.output, outfile)
+            
+            cmd = "multiqc {0} -o {0}/multiqc --no-megaqc-upload".format(self.output)
+            proc = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE)
+            output, error = proc.communicate() 
+            cmd = "mv multiqc/multiqc_report.html {0} && rm -r {0}/multiqc".format(local, self.output)
+            proc = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE)
+            output, error = proc.communicate() 
+
+            if os.path.isfile(local):
+                self.filedict[output] = local
+                if not silent:
+                    self.attachments.append(local)
+        except Exception as e:
+            self.logger.error(
+                "Unable to generate multiqc report."
+            )
+            self.error = True
+
     def gen_motif(self, motif="resistance", silent=False):
-        if motif not in ["resistance", "expec"]:
+        if motif not in ["resistance", "custom"]:
             self.logger.error("Invalid motif type specified for gen_motif function")
         if self.collection:
             sample_info = gen_collectiondata(self.name)
@@ -230,8 +262,8 @@ class Reporter:
                         and not r.gene in motifdict[r.resistance]
                     ):
                         motifdict[r.resistance].append(r.gene)
-            elif motif == "expec":
-                for e in s.expacs:
+            elif motif == "custom":
+                for e in s.custom_targets:
                     if (
                         not (e.virulence in motifdict.keys())
                         and e.threshold == "Passed"
@@ -289,8 +321,8 @@ class Reporter:
                             and not r.gene in rowdict[r.resistance]
                         ):
                             rowdict[r.resistance][r.gene] = r.identity
-                elif motif == "expec":
-                    for e in s.expacs:
+                elif motif == "custom":
+                    for e in s.custom_targets:
                         if (
                             not (e.virulence in rowdict.keys())
                             and e.threshold == "Passed"

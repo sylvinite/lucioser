@@ -50,7 +50,6 @@ def set_cli_config(config):
                 t = ctx.obj["config"]
                 with open(os.path.abspath(config), "r") as conf:
                     ctx.obj["config"] = json.load(conf)
-                ctx.obj["config"]["folders"]["expec"] = t["folders"]["expec"]
                 ctx.obj["config"]["folders"]["adapters"] = t["folders"]["adapters"]
                 ctx.obj["config"]["config_path"] = os.path.abspath(config)
             except Exception as e:
@@ -132,10 +131,10 @@ def root(ctx):
     default=False,
     is_flag=True,
 )
+@click.option("--custom_target", help="Fasta of custom targets to gene check against", default="")
 @click.pass_context
 def analyse(
-    ctx, sampleinfo_file, input, config, dry, email, skip_update, force_update, untrimmed, uncareful
-):
+    ctx, sampleinfo_file, input, config, dry, email, skip_update, force_update, untrimmed, uncareful, custom_target):
     """Sequence analysis, typing and resistance identification"""
     # Run section
     pool = []
@@ -144,6 +143,8 @@ def analyse(
     set_cli_config(config)
     ctx.obj["config"]["regex"]["mail_recipient"] = email
     ctx.obj["config"]["dry"] = dry
+    if custom_target != "":
+        custom_target = os.path.abspath(custom_target)
     if not os.path.isdir(input):
         click.echo("ERROR - Sequence data folder {} does not exist.".format(input))
         ctx.abort()
@@ -159,6 +160,7 @@ def analyse(
         "trimmed": not untrimmed,
         "careful": not uncareful,
         "pool": pool,
+        "custom_target":custom_target,
     }
 
     # Samples section
@@ -167,7 +169,7 @@ def analyse(
         config=ctx.obj["config"],
         log=ctx.obj["log"],
         sampleinfo=sampleinfo,
-        run_settings=run_settings,
+        run_settings=run_settings
     )
 
     ext_refs = Referencer(
@@ -235,13 +237,14 @@ def refer(ctx):
     "--report",
     default="default",
     type=click.Choice(
-        ["default", "typing", "motif_overview", "qc", "json_dump", "st_update"]
+        ["default", "typing", "motif_overview", "qc", "json_dump", "st_update", "multiqc"]
     ),
 )
 @click.option("--output", help="Report output folder", default="")
+@click.option("--custom_target", help="Fasta of custom targets to gene check against", default="")
 @click.pass_context
 def finish(
-    ctx, sampleinfo_file, input, track, config, dry, email, skip_update, report, output
+    ctx, sampleinfo_file, input, track, config, dry, email, skip_update, report, output, custom_target
 ):
     """Sequence analysis, typing and resistance identification"""
     # Run section
@@ -249,6 +252,9 @@ def finish(
     set_cli_config(config)
     ctx.obj["config"]["regex"]["mail_recipient"] = email
     ctx.obj["config"]["dry"] = dry
+    if custom_target != "":
+        custom_target =os.path.abspath(custom_target)
+
     if not os.path.isdir(input):
         click.echo("ERROR - Sequence data folder {} does not exist.".format(input))
         ctx.abort()
@@ -264,6 +270,7 @@ def finish(
         "dry": dry,
         "email": email,
         "skip_update": skip_update,
+        "custom_target":custom_target,
     }
 
     # Samples section
@@ -283,7 +290,7 @@ def finish(
         click.echo("{}".format(e))
 
     res_scraper = Scraper(
-        config=ctx.obj["config"], log=ctx.obj["log"], sampleinfo=sampleinfo, input=input
+        config=ctx.obj["config"], log=ctx.obj["log"], sampleinfo=sampleinfo, run_settings=run_settings, input=input
     )
     if isinstance(sampleinfo, list) and len(sampleinfo) > 1:
         res_scraper.scrape_project()
@@ -332,6 +339,19 @@ def observe(ctx):
         click.echo(org.replace("_", " ").capitalize())
 
 
+@refer.command()
+@click.pass_context
+def update(ctx, sampleinfo_file):
+    """Updates all ST and Resistance databases"""
+    ext_refs = Referencer(config=ctx.obj["config"], log=ctx.obj["log"])
+    click.echo("INFO - Checking versions of references..")
+    try:
+        ext_refs.update_refs()
+        click.echo("INFO - Version check done.")
+    except Exception as e:
+        click.echo("{}".format(e))
+    done()
+
 @utils.command()
 @click.argument("sampleinfo_file")
 @click.option(
@@ -343,7 +363,7 @@ def observe(ctx):
     "--type",
     default="default",
     type=click.Choice(
-        ["default", "typing", "motif_overview", "qc", "json_dump", "st_update"]
+        ["default", "typing", "motif_overview", "qc", "json_dump", "st_update","multiqc"]
     ),
 )
 @click.option("--output", help="Full path to output folder", default="")

@@ -47,12 +47,6 @@ if preset_config != "":
         # Load flask info
         app.config.update(preset_config["database"])
 
-        # Add extrapaths to config
-        preset_config["folders"]["expec"] = os.path.abspath(
-            os.path.join(
-                pathlib.Path(__file__).parent.parent, "unique_references/ExPEC.fsa"
-            )
-        )
         # Check if release install exists
         for entry in os.listdir(get_python_lib()):
             if "microSALT-" in entry:

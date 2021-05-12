@@ -18,7 +18,7 @@ class Samples(db.Model):
     projects = relationship("Projects", back_populates="samples")
     resistances = relationship("Resistances", back_populates="samples")
     # steps = relationship("Steps", back_populates="samples")
-    expacs = relationship("Expacs", back_populates="samples")
+    custom_targets = relationship("Custom_targets", back_populates="samples")
 
     CG_ID_sample = db.Column(db.String(15), primary_key=True, nullable=False)
     CG_ID_project = db.Column(db.String(15), ForeignKey("projects.CG_ID_project"))
@@ -98,9 +98,9 @@ class Resistances(db.Model):
     contig_end = db.Column(db.Integer)
 
 
-class Expacs(db.Model):
-    __tablename__ = "expacs"
-    samples = relationship("Samples", back_populates="expacs")
+class Custom_targets(db.Model):
+    __tablename__ = "custom_targets"
+    samples = relationship("Samples", back_populates="custom_targets")
 
     CG_ID_sample = db.Column(
         db.String(15), ForeignKey("samples.CG_ID_sample"), primary_key=True
@@ -119,6 +119,7 @@ class Expacs(db.Model):
     virulence = db.Column(db.String(120))
     contig_start = db.Column(db.Integer)
     contig_end = db.Column(db.Integer)
+    db_name = db.Column(db.String(50))
 
 
 class Projects(db.Model):
